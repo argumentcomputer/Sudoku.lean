@@ -51,7 +51,7 @@
           src = ./test;
         };
         joinDepsDerivations = getSubDrv:
-          pkgs.lib.concatStringsSep ":" (map (d: (builtins.tryEval "${getSubDrv d}").value) ([ Sudoku test ] ++ Sudoku.allExternalDeps));
+          pkgs.lib.concatStringsSep ":" (map (d: (builtins.tryEval "${getSubDrv d}").value) ([ ] ++ Sudoku.allExternalDeps));
       in
       {
         inherit Sudoku test;
@@ -69,7 +69,7 @@
             leanPkgs.lean
           ];
           LEAN_PATH = joinDepsDerivations (d: d.modRoot);
-          LEAN_SRC_PATH = joinDepsDerivations (d: d.src);
+          LEAN_SRC_PATH = "./src:./test:" + joinDepsDerivations (d: d.src);
         };
       });
 }

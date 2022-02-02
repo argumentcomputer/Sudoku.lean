@@ -10,11 +10,17 @@ def slice {A : Type u} (as : Array A) (ranges : Array ((Fin (as.size + 1)) × (F
 /-
 Bounded Nat
 -/
--- def BNat (min max : Nat) (h : min ≤ max) := {n : Fin (max + 1) // GE.ge n.val min }
 structure BNat (min max : Nat) (isMinMax : LE.le min max)where
   val  : Nat
   isLe : LE.le val max
   isGe : GE.ge val min
+
+def Nat.toBNat {min max} {h : min ≤ max} (n : Nat) : Option <| BNat min max h :=
+  if h : min ≤ n ∧ n ≤ max then
+    some { val:= n, isGe := h.left, isLe := h.right }
+  else
+    none
+    
 
 -- def BNat.mk {min max : Nat} {h : min ≤ max} (n : Nat) (h1 : LE.le n max) (h2 : GE.ge n min) : BNat min max h :=
 --   let f : Fin (max + 1) := ⟨n, by
@@ -63,7 +69,7 @@ instance BNat.decLe {min max} {h : min ≤ max} (a b : BNat min max h) : Decidab
 theorem range_terminates {min max} {h : min ≤ max} (n : BNat min max h): max - Nat.succ n.val ≤ max - n.val := by sorry
   
 
-@[inline] def BNat.range {min max} {h' : min ≤ max} : List $ BNat min max h' :=
+@[inline] partial def BNat.range {min max} {h' : min ≤ max} : List $ BNat min max h' :=
   let rec @[specialize] it : BNat min max h' → (List $ BNat min max h') := (λ n => 
     if h : n.val < max then
       List.cons n $ it 
@@ -80,8 +86,8 @@ theorem range_terminates {min max} {h : min ≤ max} (n : BNat min max h): max -
       [BNat.mk n.val (by apply n.isLe) n.isGe]
   )
   it (BNat.mk min h' (by apply ge_refl))
-termination_by measure λ b => b.snd.fst - b.snd.snd.snd.val
-decreasing_by exact ⟨range_terminates⟩
+-- termination_by measure λ b => b.snd.fst - b.snd.snd.snd.val
+-- decreasing_by exact range_terminates
 
 @[simp] theorem add_le_cancel_right (m n k: Nat) : m ≤ n → m + k ≤ n + k := by
   intro h'

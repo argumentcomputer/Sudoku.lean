@@ -68,7 +68,7 @@
           buildInputs = with pkgs; [
             leanPkgs.lean
           ];
-          LEAN_PATH = joinDepsDerivations (d: d.modRoot);
+          LEAN_PATH = "./src:./test:" + joinDepsDerivations (d: d.modRoot);
           LEAN_SRC_PATH = "./src:./test:" + joinDepsDerivations (d: d.src);
         };
       });

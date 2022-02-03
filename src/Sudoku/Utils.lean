@@ -7,6 +7,10 @@ def slice {A : Type u} (as : Array A) (ranges : Array ((Fin (as.size + 1)) × (F
     as.toSubarray start.val stop.val
   ) ranges
 
+
+def Subarray.unique {A : Type u} [BEq A] (s : Subarray A) : Bool :=
+  (s.foldl (λ (b, arr) a => if b && !arr.contains a then (b, arr.push a) else (false, arr)) (true, #[])).fst
+
 /-
 Bounded Nat
 -/
@@ -67,7 +71,6 @@ instance BNat.decLt {min max} {h : min ≤ max} (a b : BNat min max h) : Decidab
 instance BNat.decLe {min max} {h : min ≤ max} (a b : BNat min max h) : Decidable (LE.le a b) := Nat.decLe ..
 
 theorem range_terminates {min max} {h : min ≤ max} (n : BNat min max h): max - Nat.succ n.val ≤ max - n.val := by sorry
-  
 
 @[inline] partial def BNat.range {min max} {h' : min ≤ max} : List $ BNat min max h' :=
   let rec @[specialize] it : BNat min max h' → (List $ BNat min max h') := (λ n => 

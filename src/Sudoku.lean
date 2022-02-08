@@ -51,8 +51,8 @@ def get (b : Board) (i j : b.Index) : Option $ BNat b.elementBound :=
     sorry
   ⟩
 
-abbrev CellRowIndex (b : Board) := BNat <| Bound.mk 1 b.h (by apply b.ax.left) 
-abbrev CellColIndex (b : Board) := BNat <| Bound.mk 1 b.w (by apply b.ax.right)
+def CellRowIndex (b : Board) : Type := BNat <| Bound.mk 1 b.h (by apply b.ax.left) 
+def CellColIndex (b : Board) : Type := BNat <| Bound.mk 1 b.w (by apply b.ax.right)
 
 def getCell (b : Board) (i : b.CellRowIndex) (j : b.CellColIndex) : Slice <| Option <| BNat b.elementBound :=
   let colStart := (j.val-1)*b.w
@@ -73,23 +73,23 @@ def validateSlice {A : Type} [BEq A] (s: Slice <| Option A) : Bool :=
   | none => (found, b)
   ) (#[], true)
 
-def validate (b : Board) : Except String Unit := do
+def isValid? (b : Board) : Except String Unit := do
   -- cells
-  let mut er := 1
-  let mut ec := 1
+  -- let mut er := 1
+  -- let mut ec := 1
   let mut valid := true
   for r in [1:h] do
     for c in [1:w] do
-      let cell := getCell b r.toBNat.get! c.toBNat.get!
+      let cell := b.getCell (r.toBNat.get! : b.CellRowIndex) (c.toBNat.get! : b.CellColIndex)
       if not (validateSlice cell) then
         valid := false
-        er := r
-        ec := c
+        -- er := r
+        -- ec := c
         break
   if valid then
-    ()
+    return ()
   else
-    throw s!"invalid at {er} {ec}"
+    throw s!"invalid at"
 
 
 -- /--- rows
@@ -103,6 +103,56 @@ def validate (b : Board) : Except String Unit := do
 --     if not (unique col) then
 --       error s!"not unique"
 -- -/
+
+private def toString (b : Board) : String :=
+  let horiz := "-".replicate (3*b.h*b.w + b.w + 1) ++ "\n"
+  b.arr.toList.enum.foldl (λ acc (i, oe) => 
+    acc ++ (if i % b.w = 0 then
+      "|"
+    else
+      ""
+    ) ++ 
+    (match oe with
+    | some e => s!" {e} "
+    | none => s!" _ "
+    ) ++ (if (i + 1) % b.size = 0 then
+      "|\n" ++
+        (if ((i+1) /(b.h*b.w)) % b.h = 0 then
+          horiz
+        else
+          ""
+        )
+    else
+      ""
+    )    
+  ) horiz
+
+instance : ToString Board := ⟨Board.toString⟩
+
+def parseText (s : String) (h : Nat := 3) (w : Nat := 3) : Except String Board := do
+  if ax : h ≥ 1 ∧ w ≥ 1 then
+    let lines := s.splitOn "\n"
+    let elementBound := { min := 1, max := h*w, isMinMax := one_le_size ax : Bound }
+    let rows : Array <| Option (BNat elementBound) := lines.foldl (λ acc l => 
+      let numbers := l.splitOn " "
+      acc ++ numbers.toArray.map (λ s =>
+      if let some n := s.toNat? then
+        n.toBNat
+      else
+        none
+      ) 
+    ) #[]
+    if axArr : rows.size = h*h*w*w then
+      return { h, w, ax, arr := rows, axArr : Board }
+    else
+      throw s!"Wrong number of elements {rows.size} should be h*h*w*w = {h*h*w*w}"
+  else
+    throw "w and h must be ≥1"
+    
+def parseFile (f : System.FilePath) (h : Nat := 3) (w : Nat := 3) : IO Board := do
+  let text ← IO.FS.readFile f
+  let board : Board ← IO.ofExcept <| parseText text h w
+  return board
 
 end Board
 end Sudoku

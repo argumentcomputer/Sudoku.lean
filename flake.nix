@@ -55,7 +55,7 @@
       in
       {
         inherit Sudoku test;
-        packages = {
+        packages = Sudoku // {
           ${name} = Sudoku.sharedLib;
           cli = cli.executable;
           test = test.executable;
@@ -66,7 +66,7 @@
         defaultPackage = self.packages.${system}.cli;
         devShell = pkgs.mkShell {
           buildInputs = with pkgs; [
-            leanPkgs.lean
+            leanPkgs.lean-dev
           ];
           LEAN_PATH = "./src:./test:" + joinDepsDerivations (d: d.modRoot);
           LEAN_SRC_PATH = "./src:./test:" + joinDepsDerivations (d: d.src);

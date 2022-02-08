@@ -1,5 +1,8 @@
 universe u v
 
+def String.replicate (s: String) (n : Nat) (sep := "") : String :=
+  "".intercalate (List.replicate n s)
+
 -- def Slice (A : Type u) : Type u := Array $ Subarray A
 open Std
 
@@ -75,14 +78,6 @@ instance {b} (n : Nat) {h1 : n ≥ b.min} {h2 : n ≤ b.max} : OfNat (BNat b) n 
 
 instance {bound} : ToString (BNat bound) where
   toString b := ToString.toString b.val
-
--- def BNat.mk {min max : Nat} {h : min ≤ max} (n : Nat) (h1 : LE.le n max) (h2 : GE.ge n min) : BNat min max h :=
---   let f : Fin (max + 1) := ⟨n, by
---     rw [Nat.add_one]
---     apply Nat.lt_succ_of_le
---     apply h1
---   ⟩
---   ⟨f, by apply h2⟩
 
 @[simp] theorem ge_is_le (n m : Nat) : n ≥ m → m ≤ n := by
   intro h

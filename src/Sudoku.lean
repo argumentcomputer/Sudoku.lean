@@ -20,17 +20,13 @@ structure Board where
   axArr : arr.size = h*h*w*w
 
 namespace Board
+/-
+The size of the side of the quadratic grid. The number of elements is size^2.
+-/
 def size (b: Board) : Nat := b.h * b.w
 
-@[simp] theorem board_size (b : Board) : b.size = h * h * w * w := by
-  -- apply Board.size
-  -- simp [b.axArr]
-  sorry
-  -- simp [b.axArr, Nat.mul_assoc, Nat.mul_comm w (h * w), ←Nat.mul_assoc, ←Nat.mul_assoc]
-
-
-@[simp] theorem board_size_ge_one (b : Board) : b.size ≥ 1 := by
-  rw [board_size];
+@[simp] theorem board_size_ge_one (b : Board) : b.arr.size ≥ 1 := by
+  rw [b.axArr];
   have hh := mul_ge_one_of_ge_one b.ax.1 b.ax.1
   have ww := mul_ge_one_of_ge_one b.ax.2 b.ax.2
   rw [Nat.mul_assoc]
@@ -58,7 +54,8 @@ def getCell (b : Board) (i : b.CellRowIndex) (j : b.CellColIndex) : Slice <| Opt
   let colStart := (j.val-1)*b.w
   let rowStart := colStart + (i.val-1)*b.h
   let rows := b.elementBound.range.toArray.map (λ r =>
-    { start := (i.val-1)*b.h, stop := (j.val-1)*b.w, h1 := by sorry;, h2 := by sorry; /- simp-/ : SliceRange b.arr.size }
+    let start := rowStart + r.val*b.w*b.h
+    { start, stop := start + b.w, h1 := by sorry;, h2 := by sorry; /- simp-/ : SliceRange b.arr.size }
   )
   { array := b.arr, ranges := rows : Slice <| Option <| BNat b.elementBound  }
 
@@ -78,8 +75,8 @@ def isValid? (b : Board) : Except String Unit := do
   -- let mut er := 1
   -- let mut ec := 1
   let mut valid := true
-  for r in [1:h] do
-    for c in [1:w] do
+  for r in [1:b.h] do
+    for c in [1:b.w] do
       let cell := b.getCell (r.toBNat.get! : b.CellRowIndex) (c.toBNat.get! : b.CellColIndex)
       if not (validateSlice cell) then
         valid := false

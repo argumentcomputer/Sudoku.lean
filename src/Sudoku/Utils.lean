@@ -1,7 +1,7 @@
 universe u v
 
 def String.replicate (s: String) (n : Nat) (sep := "") : String :=
-  "".intercalate (List.replicate n s)
+  sep.intercalate (List.replicate n s)
 
 -- def Slice (A : Type u) : Type u := Array $ Subarray A
 open Std
@@ -12,7 +12,7 @@ structure SliceRange (size : Nat) where
   h1 : start ≤ stop
   h2 : stop ≤ size
 
-partial def SliceRange.toRange (s : SliceRange n) : List Nat :=
+def SliceRange.toRange (s : SliceRange n) : List Nat :=
   let rec f n := 
     if n < s.stop then
       n :: f (n+1)
@@ -20,17 +20,33 @@ partial def SliceRange.toRange (s : SliceRange n) : List Nat :=
       []
   f s.start
 termination_by _ => s.stop - n
+decreasing_by f =>
+  simp [Nat.succ_eq_add_one]
+  sorry
 
 structure Slice (α : Type u) where
   array : Array α
   ranges : Array (SliceRange array.size)
+
+def List.allSome {A} (l : List <| Option A) : Bool := l.all (λ o => o.isSome)
+
+unsafe def List.allSomeUnwrap! {A} [Inhabited A] (l : List <| Option A) : List A := 
+  l.map (λ o => o.get!)
+
+/-
+Take t and jump/drop j for n times.
+-/
+def List.takeAndJump {A} (t j n : Nat) (l : List A) : List A :=
+  match n with
+  | 0 => []
+  | Nat.succ ns => l.take t ++ (l.drop j).takeAndJump t j ns
 
 namespace Slice
 
 def map {α β : Type u} (f : α → β) (s : Slice α) : Array β :=
   s.ranges.foldl (λ acc srange =>
     acc ++ (srange.toRange.toArray.map (λ i =>
-      f <| s.array.get ⟨i, by sorry⟩
+      f <| s.array.get ⟨i, by simp [srange.h2]; sorry⟩
     ))
   ) #[]
 

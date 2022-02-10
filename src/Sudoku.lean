@@ -1,7 +1,7 @@
 import Sudoku.Utils
 namespace Sudoku
 
-
+universe u
 /-
 Height and width
 -/
@@ -19,11 +19,39 @@ structure Board where
   arr : Array (Option <| BNat elementBound)
   axArr : arr.size = h*h*w*w
 
+inductive Permutation {A : Type u} : (l1 l2 : List A) → Prop
+  | refl : Permutation [] []
+  | skip {a : A} (p : Permutation l2 l1) : Permutation (a :: l2) (a :: l1)
+  | swap {a b : A} : Permutation (a :: b :: l1) (a :: b :: l2)
+  | trans (p1 : Permutation l1 l2) (p2 : Permutation l2 l3) : Permutation l1 l3
+
+def Progression (n m : Nat) : List Nat :=
+  match n with
+  | 0 => []
+  | Nat.succ ns => m :: Progression ns (Nat.succ m)
+
 namespace Board
+
 /-
 The size of the side of the quadratic grid. The number of elements is size^2.
 -/
 def size (b: Board) : Nat := b.h * b.w
+
+/-
+Reference List of legal elements (list version of BNat b.elementBound)
+-/
+def refList (b : Board) : List Nat := Progression b.size 1
+
+def row (b : Board) (i : Nat) : List (Option <| BNat b.elementBound) := (b.arr.toList.drop (i * b.size)).take i
+
+def column (b : Board) (i : Nat) : List (Option <| BNat b.elementBound) := (b.arr.toList.drop i).takeAndJump 1 b.size b.size
+
+def cell (b : Board) (i : Nat) : List (Option <| BNat b.elementBound) := (b.arr.toList.drop (b.w * (i % b.h) + b.h * (i / b.h) * b.size)).takeAndJump b.w b.size b.h
+
+def Sudoku (b : Board) (prop : b.arr.toList.allSome = true) : Prop :=
+  ∀ i, i < b.size → Permutation ((b.row i).allSomeUnwrap!.map BNat.val) b.refList ∧
+  ∀ i, i < b.size → Permutation ((b.column i).allSomeUnwrap!.map BNat.val) b.refList ∧
+  ∀ i, i < b.size → Permutation ((b.cell i).allSomeUnwrap!.map BNat.val) b.refList
 
 @[simp] theorem board_size_ge_one (b : Board) : b.arr.size ≥ 1 := by
   rw [b.axArr];
@@ -77,9 +105,9 @@ def isValid? (b : Board) : Except String Unit := do
   let mut valid := true
   for r in [1:b.h] do
     for c in [1:b.w] do
-      let cell := b.getCell (r.toBNat.get! : b.CellRowIndex) (c.toBNat.get! : b.CellColIndex)
-      if not (validateSlice cell) then
-        valid := false
+      -- let cell := b.getCell (r.toBNat.get! : b.CellRowIndex) (c.toBNat.get! : b.CellColIndex)
+      -- if not (validateSlice cell) then
+      --   valid := false
         -- er := r
         -- ec := c
         break

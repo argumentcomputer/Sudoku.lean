@@ -19,6 +19,11 @@ structure Board where
   arr : Array (Option <| BNat elementBound)
   axArr : arr.size = h*h*w*w
 
+structure FilledBoard extends Board where
+  prop : arr.toList.allSome = true
+
+def FilledBoard.list (fb : FilledBoard) : List Nat := fb.arr.toList.allSomeUnwrap (fb.prop) |> List.map BNat.val
+
 inductive Permutation {A : Type u} : (l1 l2 : List A) → Prop
   | refl : Permutation [] []
   | skip {a : A} (p : Permutation l2 l1) : Permutation (a :: l2) (a :: l1)
@@ -31,7 +36,6 @@ def Progression (n m : Nat) : List Nat :=
   | Nat.succ ns => m :: Progression ns (Nat.succ m)
 
 namespace Board
-
 /-
 The size of the side of the quadratic grid. The number of elements is size^2.
 -/
@@ -42,16 +46,24 @@ Reference List of legal elements (list version of BNat b.elementBound)
 -/
 def refList (b : Board) : List Nat := Progression b.size 1
 
-def row (b : Board) (i : Nat) : List (Option <| BNat b.elementBound) := (b.arr.toList.drop (i * b.size)).take i
+end Board
 
-def column (b : Board) (i : Nat) : List (Option <| BNat b.elementBound) := (b.arr.toList.drop i).takeAndJump 1 b.size b.size
+namespace FilledBoard
 
-def cell (b : Board) (i : Nat) : List (Option <| BNat b.elementBound) := (b.arr.toList.drop (b.w * (i % b.h) + b.h * (i / b.h) * b.size)).takeAndJump b.w b.size b.h
+def row (b : FilledBoard) (i : Nat) : List Nat := (b.list.drop (i * b.size)).take i
 
-def Sudoku (b : Board) (prop : b.arr.toList.allSome = true) : Prop :=
-  ∀ i, i < b.size → Permutation ((b.row i).allSomeUnwrap!.map BNat.val) b.refList ∧
-  ∀ i, i < b.size → Permutation ((b.column i).allSomeUnwrap!.map BNat.val) b.refList ∧
-  ∀ i, i < b.size → Permutation ((b.cell i).allSomeUnwrap!.map BNat.val) b.refList
+def column (b : FilledBoard) (i : Nat) : List Nat := (b.list.drop i).takeAndJump 1 b.size b.size
+
+def cell (b : FilledBoard) (i : Nat) : List Nat := (b.list.drop (b.w * (i % b.h) + b.h * (i / b.h) * b.size)).takeAndJump b.w b.size b.h
+
+def Sudoku (b : FilledBoard) : Prop :=
+  ∀ i, i < b.size → Permutation (b.row i) b.refList ∧
+  ∀ i, i < b.size → Permutation (b.column i) b.refList ∧
+  ∀ i, i < b.size → Permutation (b.cell i) b.refList
+
+end FilledBoard
+
+namespace Board
 
 @[simp] theorem board_size_ge_one (b : Board) : b.arr.size ≥ 1 := by
   rw [b.axArr];
@@ -98,41 +110,30 @@ def validateSlice {A : Type} [BEq A] (s: Slice <| Option A) : Bool :=
   | none => (found, b)
   ) (#[], true)
 
-def isValid? (b : Board) : Except String Unit := do
+def isValid? (b : Board) : Except String Unit := do {
   -- cells
   -- let mut er := 1
   -- let mut ec := 1
-  let mut valid := true
-  for r in [1:b.h] do
-    for c in [1:b.w] do
+  let mut valid := true;
+  -- for r in [1:b.h] do
+  --   for c in [1:b.w] do
       -- let cell := b.getCell (r.toBNat.get! : b.CellRowIndex) (c.toBNat.get! : b.CellColIndex)
       -- if not (validateSlice cell) then
       --   valid := false
         -- er := r
         -- ec := c
-        break
+      -- break
   if valid then
-    return ()
+    return ();
   else
-    throw s!"invalid at"
+    throw s!"invalid at";
+}
 
 
--- /--- rows
---   for r in [1:h*w] do
---     let row := getRow b r
---     if not (unique row) then
---       error s!"not unique"
---   -- columns
---   for c in [1:h*w] do
---     let col := getColumn b c
---     if not (unique col) then
---       error s!"not unique"
--- -/
-
-private def toString (b : Board) : String :=
+protected def toString (b : Board) (useBorders : Bool := true) : String :=
   let horiz := "-".replicate (3*b.h*b.w + b.w + 1) ++ "\n"
   b.arr.toList.enum.foldl (λ acc (i, oe) => 
-    acc ++ (if i % b.w = 0 then
+    acc ++ (if useBorders ∧ i % b.w = 0 then
       "|"
     else
       ""
@@ -141,8 +142,9 @@ private def toString (b : Board) : String :=
     | some e => s!" {e} "
     | none => s!" _ "
     ) ++ (if (i + 1) % b.size = 0 then
-      "|\n" ++
-        (if ((i+1) /(b.h*b.w)) % b.h = 0 then
+      (if useBorders then "|" else "") ++
+      "\n" ++
+        (if useBorders ∧ ((i+1) /(b.h*b.w)) % b.h = 0 then
           horiz
         else
           ""

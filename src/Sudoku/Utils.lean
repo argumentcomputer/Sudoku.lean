@@ -30,7 +30,7 @@ structure Slice (α : Type u) where
 
 def List.allSome {A} (l : List <| Option A) : Bool := l.all (λ o => o.isSome)
 
-unsafe def List.allSomeUnwrap! {A} [Inhabited A] (l : List <| Option A) : List A := 
+def List.allSomeUnwrap {A} [Inhabited A] (l : List <| Option A) (prop : l.allSome = true) : List A := 
   l.map (λ o => o.get!)
 
 /-

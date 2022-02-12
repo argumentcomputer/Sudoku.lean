@@ -59,16 +59,11 @@ def foldl {α β : Type u} (f : α → β → α) (init : α) (s : Slice β) : �
 
 end Slice
 
--- def slice {A : Type u} (as : Array A) (ranges : Array (⟨(start : Nat), (stop: Nat), start ≤ stop⟩)) : Slice A :=
---   { 
---     as := as,
---     ranges := ranges.map (fun (start, stop, prop) =>
---       { start := start.val, stop := stop.val, h1 := prop, h2 := stop.property : SliceRange as }
---     )
---   }
+@[simp] theorem Nat.ge_is_le (n m : Nat) : n ≥ m → m ≤ n := by
+  intro h
+  exact h
 
--- def Slice.unique {A : Type u} [BEq A] (s : Slice A) : Bool :=
---   (s.foldl (λ (b, arr) a => if b && !arr.contains a then (b, arr.push a) else (false, arr)) (true, #[])).fst
+@[simp] theorem Nat.ge_refl (n : Nat) : n ≥ n := by apply ge_is_le; apply Nat.le_refl
 
 structure Bound where
   min : Nat
@@ -78,16 +73,45 @@ structure Bound where
 /-
 Bounded Nat
 -/
-structure BNat (b : Bound) where
+structure BNat (bound : Bound) where
   val  : Nat
-  isLe : LE.le val b.max
-  isGe : GE.ge val b.min
+  isLe : LE.le val bound.max
+  isGe : GE.ge val bound.min
 
-def Nat.toBNat {b} (n : Nat) : Option <| BNat b :=
+def BNat.succ {bound} (b : BNat bound) : BNat bound :=
+  let val := Nat.succ b.val
+  if isLe : val ≤ bound.max then
+    { val, isLe, isGe := by
+      -- apply Nat.ge_is_le;
+      simp [b.isGe];
+      sorry
+    }
+  else
+    b
+
+def List.weaken {bound} (l : List <| BNat bound) : List Nat := l.map (λ b => b.val)
+
+def BNat.raise {b1 : Bound} (b : BNat b1) (max : Nat) (h : b1.max ≤ max) : BNat <| {b1 with max := max, isMinMax := by simp [Nat.lt_trans]; sorry; } :=
+  { val := b.val, isLe := by sorry; /-rw [h]; apply b.isLe; sorry;-/, isGe := b.isGe }
+
+def Nat.toBNat? {b} (n : Nat) : Option <| BNat b :=
   if h : b.min ≤ n ∧ n ≤ b.max then
     some { val:= n, isGe := h.left, isLe := h.right }
   else
     none
+
+theorem le_left_cancel {m n : Nat} : m ≤ m + n := by {
+  rw [←Nat.add_zero m]
+  apply Nat.add_le_add_left;
+  apply Nat.zero_le n;
+}
+
+def progression (n m : Nat) /-(bound : Bound := ⟨m, m+n, le_left_cancel⟩)-/ : List Nat :=
+  match n with
+  | 0 => []
+  | Nat.succ ns => m /-{ val := m, isLe := sorry, isGe := sorry }-/ :: (progression ns (Nat.succ m))--.map (λ b : BNat _ => BNat.raise b (max := m+n) (h := by sorry) : BNat bound)
+
+def Fin.toBNat {n} (bound := Bound.mk 0 n (Nat.zero_le n)) (f : Fin n) : BNat <| bound := ⟨f.val, by simp [f.isLt]; sorry, by simp [(Nat.zero_le f.val), Nat.ge_is_le]; sorry;⟩
 
 instance {b} (n : Nat) {h1 : n ≥ b.min} {h2 : n ≤ b.max} : OfNat (BNat b) n where
   ofNat := {val := n, isLe := h2, isGe := h1 }
@@ -95,11 +119,6 @@ instance {b} (n : Nat) {h1 : n ≥ b.min} {h2 : n ≤ b.max} : OfNat (BNat b) n 
 instance {bound} : ToString (BNat bound) where
   toString b := ToString.toString b.val
 
-@[simp] theorem ge_is_le (n m : Nat) : n ≥ m → m ≤ n := by
-  intro h
-  exact h
-
-@[simp] theorem ge_refl (n : Nat) : n ≥ n := by apply ge_is_le; apply Nat.le_refl
 
 instance {b}: Inhabited (BNat b) := ⟨BNat.mk b.min b.isMinMax (by simp)⟩
 
@@ -131,16 +150,14 @@ instance {bound} : LE (BNat bound) where
 instance BNat.decLt {bound} (a b : BNat bound) : Decidable (LT.lt a b) := Nat.decLt ..
 instance BNat.decLe {bound} (a b : BNat bound) : Decidable (LE.le a b) := Nat.decLe ..
 
-theorem range_terminates {b} (n : BNat b): b.max - Nat.succ n.val ≤ b.max - n.val := by sorry
-
-@[inline] partial def Bound.range (b : Bound) : List $ BNat b :=
+@[inline] def Bound.range (b : Bound) : List $ BNat b :=
   let rec @[specialize] it : BNat b → (List $ BNat b) := (λ n => 
     if h : n.val < b.max then
       List.cons n $ it 
         { val := Nat.succ n.val
         , isLe := (by apply h)
         , isGe := (by
-          apply ge_is_le
+          apply Nat.ge_is_le
           apply Nat.le_of_lt
           apply Nat.lt_succ_of_le
           apply n.isGe
@@ -149,9 +166,8 @@ theorem range_terminates {b} (n : BNat b): b.max - Nat.succ n.val ≤ b.max - n.
     else
       [BNat.mk n.val (by apply n.isLe) n.isGe]
   )
-  it (BNat.mk b.min b.isMinMax (by apply ge_refl))
--- termination_by measure λ b => b.snd.fst - b.snd.snd.snd.val
--- decreasing_by exact range_terminates
+  it (BNat.mk b.min b.isMinMax (by apply Nat.ge_refl))
+termination_by _ => b.max - n.val
 
 @[simp] theorem add_le_cancel_right (m n k: Nat) : m ≤ n → m + k ≤ n + k := by
   intro h'

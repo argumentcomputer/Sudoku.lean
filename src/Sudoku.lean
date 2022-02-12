@@ -5,7 +5,7 @@ universe u
 /-
 Height and width
 -/
-variable {h w : Nat}
+variable {h w : Nat} {bound : Bound}
 
 /-
 A Sudoku board not validated
@@ -29,11 +29,9 @@ inductive Permutation {A : Type u} : (l1 l2 : List A) → Prop
   | skip {a : A} (p : Permutation l2 l1) : Permutation (a :: l2) (a :: l1)
   | swap {a b : A} : Permutation (a :: b :: l1) (a :: b :: l2)
   | trans (p1 : Permutation l1 l2) (p2 : Permutation l2 l3) : Permutation l1 l3
+  
+-- def Permutation.decide {A} : ∀ (a b : A), a = b + a <> b → ∀ (l1 l2 : List A), (Permutation l1 l2) + (~ Permutation l1 l2)
 
-def Progression (n m : Nat) : List Nat :=
-  match n with
-  | 0 => []
-  | Nat.succ ns => m :: Progression ns (Nat.succ m)
 
 namespace Board
 /-
@@ -44,9 +42,59 @@ def size (b: Board) : Nat := b.h * b.w
 /-
 Reference List of legal elements (list version of BNat b.elementBound)
 -/
-def refList (b : Board) : List Nat := Progression b.size 1
+def refList (b : Board) : List Nat := progression b.size 1
 
 end Board
+
+variable {size : Nat}
+
+structure Pos (size) where
+  x : Fin size
+  y : Fin size
+  deriving BEq
+
+theorem Fin.of_zero {n : Nat} (f : Fin n) : 0 < n := by apply Nat.lt_of_le_and_ne; apply Nat.zero_le; sorry
+
+def Pos.next {size} (p : Pos size) : Pos size :=
+  if h : p.y < size then { p with y := p.y }
+  else if h : Nat.succ p.x < size then { x := ⟨p.x + 1, by apply h⟩, y := ⟨0, Fin.of_zero p.x⟩ }
+  else p
+
+structure Litteral (size) where
+  p : Pos size
+  v : Nat
+  deriving BEq
+
+def Clause size := List (Litteral size)
+
+namespace Clause
+
+def rm (c1 c2 : Clause size) : Clause size := List.removeAll c1 c2
+
+def merge (c1 c2 : Clause size) : Clause size := List.append c1 c2
+
+-- def update (c : Clause size) : Clause size := c.find? (λ l => l.v)
+
+end Clause
+
+def Clauses size := List (Nat × Clause size)
+
+namespace Clauses
+
+def merge (c1 c2 : Clauses size) : Clauses size := List.append c1 c2
+
+def insert (c : Clause size) (cs : Clauses size) : Clauses size := (c.length, c) :: cs
+
+-- def update (c : Clauses size) : Clauses size := c.find? (λ l => l.v)
+
+end Clauses
+
+def indexes (b : Board) : List Nat := progression b.size 0
+
+def cross (b : Board) : List (Pos b.size) :=
+  let p : List Nat := progression b.h 0
+  let q : List Nat := progression b.w 0
+  p.foldr (fun x l => (q.map (fun y => (Pos.mk ⟨x, by sorry⟩ ⟨y, by sorry⟩))) ++ l) []
 
 namespace FilledBoard
 
@@ -56,10 +104,16 @@ def column (b : FilledBoard) (i : Nat) : List Nat := (b.list.drop i).takeAndJump
 
 def cell (b : FilledBoard) (i : Nat) : List Nat := (b.list.drop (b.w * (i % b.h) + b.h * (i / b.h) * b.size)).takeAndJump b.w b.size b.h
 
+def get (b : FilledBoard) (p : Pos b.size) : Nat :=
+  let i := p.x * b.size + p.y
+  b.list.get i (by sorry;)
+
 def Sudoku (b : FilledBoard) : Prop :=
   ∀ i, i < b.size → Permutation (b.row i) b.refList ∧
   ∀ i, i < b.size → Permutation (b.column i) b.refList ∧
   ∀ i, i < b.size → Permutation (b.cell i) b.refList
+
+-- def check {fb} (s : Sudoku fb) : Prop := 
 
 end FilledBoard
 
@@ -151,7 +205,7 @@ protected def toString (b : Board) (useBorders : Bool := true) : String :=
         )
     else
       ""
-    )    
+    )
   ) horiz
 
 instance : ToString Board := ⟨Board.toString⟩
@@ -164,7 +218,7 @@ def parseText (s : String) (h : Nat := 3) (w : Nat := 3) : Except String Board :
       let numbers := l.splitOn " "
       acc ++ numbers.toArray.map (λ s =>
       if let some n := s.toNat? then
-        n.toBNat
+        n.toBNat?
       else
         none
       ) 
